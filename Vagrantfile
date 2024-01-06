@@ -1,6 +1,10 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+# Run VirtualBox with administrator privileges and make shure you install VirtualBox Extension Pack in VirtualBox.
+# Also run command in cmd "vagrant plugin install vagrant-vbguest"
+# Need for vm.synced_folder
+
 JNKS_STATIC_IP          =   "192.168.1.175"
 WNDS_AGNT_STATIC_IP     =   "192.168.1.176"
 LNX_AGNT_STATIC_IP      =   "192.168.1.177"
@@ -11,7 +15,9 @@ Vagrant.configure("2") do |config|
   # Master server
   config.vm.define "jenkins-master" do |master|
     master.vm.box = "eurolinux-vagrant/centos-stream-9"
- 
+    master.vm.box_version = "9.0.38"
+
+    
     master.vm.hostname = "jenkins-master"
     master.vm.network "public_network", :bridge => "eth0", ip: JNKS_STATIC_IP
     master.vm.provider "virtualbox" do |vb|
@@ -45,30 +51,60 @@ Vagrant.configure("2") do |config|
 
       #yum install -y docker
 
+
+      # echo "Setting up users"
+      # sudo rm -rf /var/lib/jenkins/init.groovy.d
+      # sudo mkdir /var/lib/jenkins/init.groovy.d
+      # sudo cp -v /home/vagrant/01_globalMatrixAuthorizationStrategy.groovy /var/lib/jenkins/init.groovy.d/
+      # sudo cp -v /home/vagrant/02_createAdminUser.groovy /var/lib/jenkins/init.groovy.d/
+
+
       systemctl enable jenkins
       systemctl start jenkins
+
+      sleep 1m
+
+      # echo "Skipping the initial setup"
+      # echo 'JAVA_ARGS="-Djenkins.install.runSetupWizard=false"' >> /etc/default/jenkins
+
+      # echo "Installing jenkins plugins"
+      # JENKINSPWD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
+      # rm -f jenkins_cli.jar.*
+      # wget -q http://localhost:8080/jnlpJars/jenkins-cli.jar
+      # while IFS= read -r line
+      # do
+      #   list=$list' '$line
+      # done < /home/vagrant/jenkins-plugins.txt
+      # java -jar ./jenkins-cli.jar -auth admin:$JENKINSPWD -s http://localhost:8080 install-plugin $list
+
+      # echo "Restarting Jenkins"
+      # sudo service jenkins restart
+
+      # sleep 1m
+
+
     SHELL
 
     master.vm.network "forwarded_port", guest: 8080, host: 8080
   end
 
   # Windows agent
-  config.vm.define "agent-windows" do |agent|
-    agent.vm.box = "hashicorp/windows-2022"
-    agent.vm.hostname = "jenkins-agent-windows"
-    agent.vm.network "public_network", :bridge => "eth0", ip: WNDS_AGNT_STATIC_IP
-    agent.vm.provider "virtualbox" do |vb|
-      vb.memory = 2048
-    end
+  # config.vm.define "agent-windows" do |agent|
+  #   agent.vm.box = "hashicorp/windows-2022"
+  #   agent.vm.hostname = "jenkins-agent-windows"
+  #   agent.vm.network "public_network", :bridge => "eth0", ip: WNDS_AGNT_STATIC_IP
+  #   agent.vm.provider "virtualbox" do |vb|
+  #     vb.memory = 2048
+  #   end
 
-    agent.vm.provision "shell", inline: <<-SHELL
-      Add-WindowsFeature Web-Server
-      Install-Module Jenkins
-      Jenkins::AgentInstall
-    SHELL
+  #   agent.vm.provision "shell", inline: <<-SHELL
+  #     Add-WindowsFeature Web-Server
+  #     Install-Module Jenkins
+  #     Jenkins::AgentInstall
+  #   SHELL
 
-    agent.vm.network "forwarded_port", guest: 8080, host: 8080
-  end
+  #   agent.vm.network "forwarded_port", guest: 8080, host: 8080
+  # end
 
   # Linux agent
   config.vm.define "agent-linux" do |agent|
