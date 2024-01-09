@@ -29,9 +29,12 @@ Vagrant.configure("2") do |config|
     master.vm.provision "shell", inline: <<-SHELL
 
       
-
+      apt update -y
       echo "INSTALL WGET"
       apt install -y wget
+
+      dpkg --configure -a
+
 
       echo "INSTALL Java"
       apt install -y openjdk-11-jdk
@@ -57,7 +60,15 @@ Vagrant.configure("2") do |config|
       echo "INSTALL GIT"
       apt install -y git
 
-      #yum install -y docker
+      #apt install -y docker
+      
+      #echo "Skipping the initial setup"
+      #echo 'JAVA_ARGS="-Djenkins.install.runSetupWizard=false"' >> /etc/default/jenkins
+
+      #export JAVA_OPTS="JAVA_OPTS -Djava.awt.headless=true -Djenkins.install.runSetupWizard=false"
+      # ?? 
+      #echo 'JAVA_OPTS=-Djava.awt.headless=true -Djenkins.install.runSetupWizard=false' >> /etc/default/jenkins
+
 
 
       echo "Setting up users"
@@ -74,8 +85,7 @@ Vagrant.configure("2") do |config|
 
       sleep 1m
 
-      echo "Skipping the initial setup"
-      echo 'JAVA_ARGS="-Djenkins.install.runSetupWizard=false"' >> /etc/default/jenkins
+     
 
       echo "Installing jenkins plugins"
       JENKINSPWD=$(sudo cat /var/lib/jenkins/secrets/initialAdminPassword)
@@ -92,10 +102,34 @@ Vagrant.configure("2") do |config|
 
       sleep 1m
 
+      echo "Restarting server"
+      reboot
+
 
     SHELL
 
     master.vm.network "forwarded_port", guest: 8080, host: 8080
+  end
+
+
+    # Linux agent
+  config.vm.define "agent-linux" do |agent|
+    agent.vm.box = "eurolinux-vagrant/centos-stream-9"
+ 
+    agent.vm.hostname = "jenkins-agent-linux"
+    agent.vm.network "public_network", :bridge => "eth0", ip: LNX_AGNT_STATIC_IP
+    agent.vm.provider "virtualbox" do |vb|
+      vb.memory = 2048
+    end
+
+    agent.vm.provision "shell", inline: <<-SHELL
+      yum update -y
+      yum install -y jenkins-agent
+      systemctl enable jenkins-agent
+      systemctl start jenkins-agent
+    SHELL
+
+    agent.vm.network "forwarded_port", guest: 8080, host: 8081
   end
 
 end
